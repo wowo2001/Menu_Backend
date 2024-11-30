@@ -1,13 +1,14 @@
 ﻿using Menu.Data;
+using Menu.Models;
 
 namespace Menu.Services
 {
     public interface IMenuService
     {
-        Task<List<Dictionary<string, string>>> GetIngredient(string name);
-        Task<List<string>> GetMenu(string category);
+        Task<List<Ingredient>> GetIngredient(string name);
+        Task<MenuList> GetMenu(string category);
 
-        Task<string> EditMenu(EditMenuRequest menu);
+        Task<string> EditMenu(MenuDetails menu);
 
         Task<string> DeleteMenu(DeleteMenuRequest menu);
     }
@@ -19,18 +20,18 @@ namespace Menu.Services
         {
             _menuData = menuData;
         }
-        public async Task<List<Dictionary<string, string>>> GetIngredient(string name)
+        public async Task<List<Ingredient>> GetIngredient(string name)
         {
             return await _menuData.GetIngredient(name);
         }
-        public async Task<List<string>> GetMenu(string category)
+        public async Task<MenuList> GetMenu(string category)
         {
             return await _menuData.GetMenu(category);
         }
-        public async Task<string> EditMenu(EditMenuRequest menu)
+        public async Task<string> EditMenu(MenuDetails menu)
         {
-            List<string> allMenu = await _menuData.GetMenu("All");
-            if (allMenu.Contains(menu.Name))
+            MenuList allMenu = await _menuData.GetMenu("All");
+            if (allMenu.Name.Contains(menu.Name))
             {
                 return await _menuData.EditMenu(menu);
             }
@@ -41,8 +42,8 @@ namespace Menu.Services
 
         public async Task<string> DeleteMenu(DeleteMenuRequest menu)
         {
-            List<string> allMenu = await _menuData.GetMenu("All");
-            if (!allMenu.Contains(menu.Name))
+            MenuList allMenu = await _menuData.GetMenu("All");
+            if (!allMenu.Name.Contains(menu.Name))
             {
                 throw new ArgumentException("Menu does not exist");
             }

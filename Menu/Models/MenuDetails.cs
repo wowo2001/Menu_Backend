@@ -1,6 +1,6 @@
-﻿namespace Menu
+﻿namespace Menu.Models
 {
-    public class EditMenuRequest
+    public class MenuDetails
     {
         public string Name { get; set; }
         public List<Ingredient> Ingredient { get; set; }
@@ -11,6 +11,6 @@
     {
         public string Unit { get; set; }
         public string Name { get; set; }
-        public string Amount { get; set; }
+        public float Amount { get; set; }
     }
 }

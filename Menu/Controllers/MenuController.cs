@@ -1,3 +1,4 @@
+using Menu.Models;
 using Menu.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,7 +31,7 @@ namespace Menu.Controllers
             return Ok(message);
         }
         [HttpPost("EditMenu")]
-        public async Task<ActionResult<string>> EditMenu([FromBody] EditMenuRequest request)
+        public async Task<ActionResult<string>> EditMenu([FromBody] MenuDetails request)
         {
             if (request == null)
             {

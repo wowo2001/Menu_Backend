@@ -1,4 +1,4 @@
-﻿namespace Menu
+﻿namespace Menu.Models
 {
     public class DeleteMenuRequest
     {

@@ -1,18 +1,20 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
+using Menu.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Xml.Linq;
 namespace Menu.Data
 {
     public interface IMenuData
     {
-        Task<List<Dictionary<string, string>>> GetIngredient(string name);
-        Task<List<string>> GetMenu(string category);
+        Task<List<Ingredient>> GetIngredient(string name);
+        Task<MenuList> GetMenu(string category);
 
-        Task<string> EditMenu(EditMenuRequest menu);
+        Task<string> EditMenu(MenuDetails menu);
 
-        Task<string> AddMenu(EditMenuRequest menu);
+        Task<string> AddMenu(MenuDetails menu);
 
         Task<string> DeleteMenu(DeleteMenuRequest menu);
     }
@@ -31,7 +33,7 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<List<Dictionary<string, string>>> GetIngredient(string name)
+        public async Task<List<Ingredient>> GetIngredient(string name)
         {
             {
                 var request = new GetItemRequest
@@ -51,43 +53,46 @@ namespace Menu.Data
                         // Get the 'Ingredient' list from the response
                         var ingredientList = response.Item["Ingredient"].L;
 
+
                         // Prepare a list to hold the ingredient details
-                        var ingredients = new List<Dictionary<string, string>>();
+                        var ingredients = new List<Ingredient>();
 
                         foreach (var ingredient in ingredientList)
                         {
                             // Each ingredient is a map (M) containing details like Unit, Name, and Amount
                             var ingredientMap = ingredient.M;
-
+                            float amount;
+                            float.TryParse(ingredientMap["Amount"].N, out amount);
                             // Create a dictionary for each ingredient
-                            var ingredientDetails = new Dictionary<string, string>
-                        {
-                            { "Unit", ingredientMap["Unit"].S },
-                            { "Name", ingredientMap["Name"].S },
-                            { "Amount", ingredientMap["Amount"].S }
-                        };
+                            var ingredientDetails = new Ingredient()
+                            {
+                                Unit = ingredientMap["Unit"].S,
+                                Name = ingredientMap["Name"].S,
+                                Amount = amount
+                            };
 
                             // Add the ingredient dictionary to the list
                             ingredients.Add(ingredientDetails);
                         }
+
 
                         // Return the list of ingredient dictionaries
                         return ingredients;
                     }
                     else
                     {
-                        return new List<Dictionary<string, string>>();  // Return empty list if item not found
+                        return new List<Ingredient>();  // Return empty list if item not found
                     }
                 }
                 catch (Exception ex)
                 {
                     // Log the error and return an empty list or handle as needed
-                    return new List<Dictionary<string, string>>();  // Handle error gracefully
+                    return new List<Ingredient>();  // Handle error gracefully
                 }
             }
         }
 
-        public async Task<List<string>> GetMenu(string category)
+        public async Task<MenuList> GetMenu(string category)
         {
             ScanRequest request;
             if (category != "All")
@@ -113,7 +118,7 @@ namespace Menu.Data
                 var response = await _dynamoDbClient.ScanAsync(request);
                 if (response.Items != null && response.Items.Count > 0)
                 {
-                    var menuList = new List<string>();
+                    var menuList = new MenuList();
 
                     // Iterate through each item in the response
                     foreach (var item in response.Items)
@@ -122,7 +127,8 @@ namespace Menu.Data
                         if (item.ContainsKey("Name") && item["Name"].S != null)
                         {
                             // Add the name to the list
-                            menuList.Add(item["Name"].S);
+                            menuList.Name.Add(item["Name"].S);
+                       
                         }
                     }
 
@@ -130,17 +136,17 @@ namespace Menu.Data
                 }
                 else
                 {
-                    return new List<string>();  // Return empty list if no matching items are found
+                    return new MenuList();  // Return empty list if no matching items are found
                 }
             }
             catch (Exception ex)
             {
                 // Log the error (e.g., with a logger)
-                return new List<string>();  // Return empty list or handle as needed
+                return new MenuList();  // Return empty list or handle as needed
             }
         }
 
-        public async Task<string> EditMenu(EditMenuRequest menu)
+        public async Task<string> EditMenu(MenuDetails menu)
         {
             var updateRequest = new UpdateItemRequest
             {
@@ -159,7 +165,7 @@ namespace Menu.Data
                     {
                         { "Unit", new AttributeValue { S = i.Unit } },
                         { "Name", new AttributeValue { S = i.Name } },
-                        { "Amount", new AttributeValue { S = i.Amount } }
+                        { "Amount", new AttributeValue { N = i.Amount.ToString() } }
                     }
                 }).ToList() } }
         }
@@ -177,7 +183,7 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> AddMenu(EditMenuRequest menu)
+        public async Task<string> AddMenu(MenuDetails menu)
         {
             var putRequest = new PutItemRequest
             {
@@ -194,7 +200,7 @@ namespace Menu.Data
                         {
                             { "Unit", new AttributeValue { S = i.Unit } },
                             { "Name", new AttributeValue { S = i.Name } },
-                            { "Amount", new AttributeValue { S = i.Amount } }
+                            { "Amount", new AttributeValue { N = i.Amount.ToString() } }
                         }
                     }).ToList() // Convert the list of ingredients to a DynamoDB list of maps
                 }
