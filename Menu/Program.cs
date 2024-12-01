@@ -5,6 +5,17 @@ using Menu.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAllOrigins",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 // Load AWS configurations from appsettings.json
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
 
@@ -15,6 +26,9 @@ builder.Services.AddAWSService<IAmazonDynamoDB>();
 // Add services to the container.
 builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddScoped<IMenuData, MenuData>();
+builder.Services.AddScoped<IShopListData, ShopListData>();
+builder.Services.AddScoped<IShopListService, ShopListService>();
+
 
 
 builder.Services.AddControllers();
@@ -30,6 +44,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors("AllowAllOrigins");
 
 app.UseHttpsRedirection();
 

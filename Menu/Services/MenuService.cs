@@ -49,5 +49,6 @@ namespace Menu.Services
             }
             return await _menuData.DeleteMenu(menu);
         }
+
     }
 }
