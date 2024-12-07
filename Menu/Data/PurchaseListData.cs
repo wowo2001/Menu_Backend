@@ -13,6 +13,8 @@ namespace Menu.Data
 
         Task<string> UpdatePurchaseList(AggregateList aggregateList);
 
+        Task<List<string>> GetAllPurchaseList();
+
     }
     public class PurchaseListData : IPurchaseListData
     {
@@ -156,6 +158,56 @@ namespace Menu.Data
                 Console.WriteLine($"Error updating item in DynamoDB: {ex.Message}");
                 throw; // Rethrow the exception to handle it at a higher level if needed
             }
+        }
+
+        public async Task<List<string>> GetAllPurchaseList()
+        {
+            var projectionExpression = "Id";
+            var scanRequest = new ScanRequest
+            {
+                TableName = _tableName,
+                ProjectionExpression = projectionExpression
+            };
+            var ids = new List<string>();
+            try
+            {
+                // Perform the scan operation
+                var result = await _dynamoDbClient.ScanAsync(scanRequest);
+
+                // Iterate over the scan results and extract the 'Id' values
+                foreach (var item in result.Items)
+                {
+                    if (item.ContainsKey("Id"))
+                    {
+                        ids.Add(item["Id"].S);  // Add the 'Id' value to the list
+                    }
+                }
+
+                // If there are more items, use LastEvaluatedKey to paginate
+                while (result.LastEvaluatedKey != null && result.LastEvaluatedKey.Count > 0)
+                {
+                    // Set the exclusive start key to continue from the last evaluated key
+                    scanRequest.ExclusiveStartKey = result.LastEvaluatedKey;
+                    result = await _dynamoDbClient.ScanAsync(scanRequest);
+
+                    // Add more 'Id' values to the list
+                    foreach (var item in result.Items)
+                    {
+                        if (item.ContainsKey("Id"))
+                        {
+                            ids.Add(item["Id"].S);
+                        }
+                    }
+                }
+
+                return ids;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error scanning DynamoDB table: {ex.Message}");
+                return null;
+            }
+
         }
     }
 }

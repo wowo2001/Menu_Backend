@@ -16,6 +16,8 @@ namespace Menu.Services
         Task<AggregateList> GetPurchaseList(string Id);
 
         Task<string> UpdatePurchaseList(AggregateList aggregateList);
+
+        Task<List<string>> GetAllPurchaseList();
     }
 
     public class ShopListService : IShopListService
@@ -73,6 +75,7 @@ namespace Menu.Services
         }
         public async Task<AggregateList> AggregateShopList(string Id)
         {
+            Thread.Sleep(500);
             WeeklyChoice existingChoice = await _shopListData.GetShopList(Id);
             AggregateList aggregateList = new AggregateList();
             aggregateList.Id = Id;
@@ -131,12 +134,18 @@ namespace Menu.Services
 
         public async Task<AggregateList> GetPurchaseList(string Id)
         {
+            Thread.Sleep(500);
             return await _purchaseListData.GetPurchaseList(Id);
         }
 
         public async Task<string> UpdatePurchaseList(AggregateList aggregateList)
         {
             return await _purchaseListData.UpdatePurchaseList(aggregateList);
+        }
+
+        public async Task<List<string>> GetAllPurchaseList()
+        {
+            return await _purchaseListData.GetAllPurchaseList();
         }
     }
 

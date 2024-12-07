@@ -135,5 +135,12 @@ namespace Menu.Controllers
             var message = await _shopListService.UpdatePurchaseList(aggregateList);
             return Ok(message);
         }
+
+        [HttpGet("GetAllPurchaseList")]
+        public async Task<ActionResult<List<string>>> GetAllPurchaseList()
+        {
+            var message = await _shopListService.GetAllPurchaseList();
+            return Ok(message);
+        }
     }
 }
