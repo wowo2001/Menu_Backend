@@ -1,6 +1,7 @@
 ﻿using Menu.Data;
 using Menu.Models;
 
+
 namespace Menu.Services
 {
     public interface IMenuService
@@ -10,7 +11,7 @@ namespace Menu.Services
 
         Task<string> EditMenu(MenuDetails menu);
 
-        Task<string> DeleteMenu(DeleteMenuRequest menu);
+        Task<string> DeleteMenu(string name);
     }
     public class MenuService : IMenuService
     {
@@ -40,14 +41,14 @@ namespace Menu.Services
             }
         }
 
-        public async Task<string> DeleteMenu(DeleteMenuRequest menu)
+        public async Task<string> DeleteMenu(string name)
         {
             MenuList allMenu = await _menuData.GetMenu("All");
-            if (!allMenu.Name.Contains(menu.Name))
+            if (!allMenu.Name.Contains(name))
             {
                 throw new ArgumentException("Menu does not exist");
             }
-            return await _menuData.DeleteMenu(menu);
+            return await _menuData.DeleteMenu(name);
         }
 
     }

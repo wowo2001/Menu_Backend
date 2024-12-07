@@ -1,33 +1,38 @@
 ﻿using Menu.Data;
 using Menu.Models;
-using System.Xml.Linq;
 
 namespace Menu.Services
 {
     public interface IShopListService
     {
-        Task<string> UpdateShopList(Choice choice);
+        Task<string> UpdateShopList(WeeklyChoice choice);
 
-        Task<Choice> GetShopList(string Id);
+        Task<WeeklyChoice> GetShopList(string Id);
 
-        Task<string> DeleteShopList(DeleteShopList shopList);
+        Task<string> DeleteShopList(string id);
 
         Task<AggregateList> AggregateShopList(string Id);
+
+        Task<AggregateList> GetPurchaseList(string Id);
+
+        Task<string> UpdatePurchaseList(AggregateList aggregateList);
     }
 
     public class ShopListService : IShopListService
     {
         private readonly IShopListData _shopListData;
         private readonly IMenuData _menuData;
+        private readonly IPurchaseListData _purchaseListData;
 
-        public ShopListService(IShopListData shopListData, IMenuData menuData)
+        public ShopListService(IShopListData shopListData, IMenuData menuData, IPurchaseListData purchaseListData)
         {
             _shopListData = shopListData;
             _menuData = menuData;
+            _purchaseListData = purchaseListData;
         }
-        public async Task<string> UpdateShopList(Choice choice)
+        public async Task<string> UpdateShopList(WeeklyChoice choice)
         {
-            Choice existingChoice = await _shopListData.GetShopList(choice.Id);
+            WeeklyChoice existingChoice = await _shopListData.GetShopList(choice.Id);
             if (existingChoice.Id == null)
             {
                 return await _shopListData.AddShopList(choice);
@@ -52,27 +57,25 @@ namespace Menu.Services
             }
         }
 
-        public async Task<Choice> GetShopList(string Id)
+        public async Task<WeeklyChoice> GetShopList(string Id)
         {
             return await _shopListData.GetShopList(Id);
         }
 
-        public async Task<string> DeleteShopList(DeleteShopList shopList)
+        public async Task<string> DeleteShopList(string id)
         {
-            Choice existingChoice = await _shopListData.GetShopList(shopList.Id);
+            WeeklyChoice existingChoice = await _shopListData.GetShopList(id);
             if (existingChoice.Id == null)
             {
                 throw new ArgumentException("Menu does not exist");
             }
-            return await _shopListData.DeleteShopList(shopList.Id);
+            return await _shopListData.DeleteShopList(id);
         }
         public async Task<AggregateList> AggregateShopList(string Id)
         {
-            Choice existingChoice = await _shopListData.GetShopList(Id);
-            AggregateList aggregateList = new AggregateList()
-            {
-                AllIngredientList = new List<Ingredient>()
-            };
+            WeeklyChoice existingChoice = await _shopListData.GetShopList(Id);
+            AggregateList aggregateList = new AggregateList();
+            aggregateList.Id = Id;
             foreach (var dailyChoice in existingChoice.MyChoice)
             {
                 foreach(var eachDish in dailyChoice.Dish)
@@ -90,7 +93,14 @@ namespace Menu.Services
                         }
                         if (!inAggregateList)
                         {
-                            aggregateList.AllIngredientList.Add(dishIngredient);
+                            IngredientPurchase ingredientPurchase = new IngredientPurchase()
+                            {
+                                Name = dishIngredient.Name,
+                                Unit = dishIngredient.Unit,
+                                Amount = dishIngredient.Amount,
+                                purchased = false
+                            };
+                            aggregateList.AllIngredientList.Add(ingredientPurchase);
                         }
                         else {
                             for(int i=0; i< aggregateList.AllIngredientList.Count; i++)
@@ -107,7 +117,26 @@ namespace Menu.Services
                     
                 }
             }
+            AggregateList existingAggreateList = await _purchaseListData.GetPurchaseList(Id);
+            if (existingAggreateList.Id != null)
+            {
+                await _purchaseListData.UpdatePurchaseList(aggregateList);
+            }
+            else
+            {
+                await _purchaseListData.AddPurchaseList(aggregateList);
+            }
             return aggregateList;
+        }
+
+        public async Task<AggregateList> GetPurchaseList(string Id)
+        {
+            return await _purchaseListData.GetPurchaseList(Id);
+        }
+
+        public async Task<string> UpdatePurchaseList(AggregateList aggregateList)
+        {
+            return await _purchaseListData.UpdatePurchaseList(aggregateList);
         }
     }
 

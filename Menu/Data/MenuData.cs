@@ -2,9 +2,6 @@
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
 using Menu.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Xml.Linq;
 namespace Menu.Data
 {
     public interface IMenuData
@@ -16,7 +13,7 @@ namespace Menu.Data
 
         Task<string> AddMenu(MenuDetails menu);
 
-        Task<string> DeleteMenu(DeleteMenuRequest menu);
+        Task<string> DeleteMenu(string name);
     }
     public class MenuData : IMenuData
     {
@@ -230,14 +227,14 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> DeleteMenu(DeleteMenuRequest menu)
+        public async Task<string> DeleteMenu(string name)
         {
             var deleteRequest = new DeleteItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
         {
-            { "Name", new AttributeValue { S = menu.Name } }  // Assuming "Name" is the partition key
+            { "Name", new AttributeValue { S = name } }  // Assuming "Name" is the partition key
         }
             };
 

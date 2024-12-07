@@ -2,6 +2,7 @@ using Amazon.Runtime.Internal;
 using Menu.Models;
 using Menu.Services;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace Menu.Controllers
 {
@@ -43,7 +44,7 @@ namespace Menu.Controllers
             return Ok(message);
         }
         [HttpPost("DeleteMenu")]
-        public async Task<ActionResult<string>> DeleteMenu([FromBody] DeleteMenuRequest request)
+        public async Task<ActionResult<string>> DeleteMenu([FromBody] object request)
         {
             if (request == null)
             {
@@ -51,7 +52,9 @@ namespace Menu.Controllers
             }
             try
             {
-                var message = await _menuService.DeleteMenu(request);
+                var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
+                string name = requestData.Name;
+                var message = await _menuService.DeleteMenu(name);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -74,7 +77,7 @@ namespace Menu.Controllers
             _shopListService = shopListService;
         }
         [HttpPost("UpdateShopList")]
-        public async Task<ActionResult<string>> UpdateShopList([FromBody] Choice request)
+        public async Task<ActionResult<string>> UpdateShopList([FromBody] WeeklyChoice request)
         {
             if (request == null)
             {
@@ -85,7 +88,7 @@ namespace Menu.Controllers
         }
 
         [HttpGet("GetShopList")]
-        public async Task<ActionResult<Choice>> GetShopList([FromQuery] string Id)
+        public async Task<ActionResult<WeeklyChoice>> GetShopList([FromQuery] string Id)
         {
 
             var message = await _shopListService.GetShopList(Id);
@@ -93,7 +96,7 @@ namespace Menu.Controllers
         }
 
         [HttpPost("DeleteShopList")]
-        public async Task<ActionResult<Choice>> DeleteShopList([FromBody] DeleteShopList request)
+        public async Task<ActionResult<WeeklyChoice>> DeleteShopList([FromBody] object request)
         {
             if (request == null)
             {
@@ -101,7 +104,9 @@ namespace Menu.Controllers
             }
             try
             {
-                var message = await _shopListService.DeleteShopList(request);
+                var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
+                string id = requestData.Id;
+                var message = await _shopListService.DeleteShopList(id);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -111,9 +116,23 @@ namespace Menu.Controllers
         }
 
         [HttpGet("AggregateList")]
-        public async Task<ActionResult<AggregateList>> AggregateShopList([FromQuery] string Id)
+        public async Task<ActionResult<AggregateList>> AggregateShopList([FromQuery] string id)
         {
-            var message = await _shopListService.AggregateShopList(Id);
+            var message = await _shopListService.AggregateShopList(id);
+            return Ok(message);
+        }
+
+        [HttpGet("GetPurchaseList")]
+        public async Task<ActionResult<AggregateList>> GetPurchaseList([FromQuery] string id)
+        {
+            var message = await _shopListService.GetPurchaseList(id);
+            return Ok(message);
+        }
+
+        [HttpPost("UpdatePurchaseList")]
+        public async Task<ActionResult<AggregateList>> UpdatePurchaseList([FromBody] AggregateList aggregateList)
+        {
+            var message = await _shopListService.UpdatePurchaseList(aggregateList);
             return Ok(message);
         }
     }

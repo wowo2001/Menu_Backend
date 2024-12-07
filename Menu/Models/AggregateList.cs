@@ -2,6 +2,12 @@
 {
     public class AggregateList
     {
-        public List<Ingredient> AllIngredientList { get; set; }
+
+        public string Id { get; set; }
+        public List<IngredientPurchase> AllIngredientList { get; set; }
+
+        public AggregateList() {
+            AllIngredientList = new List<IngredientPurchase>();
+        }
     }
 }

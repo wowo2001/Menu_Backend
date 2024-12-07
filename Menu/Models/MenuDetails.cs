@@ -5,6 +5,11 @@
         public string Name { get; set; }
         public List<Ingredient> Ingredient { get; set; }
         public string Category { get; set; }
+
+        public MenuDetails()
+        {
+            Ingredient = new List<Ingredient>();
+        }
     }
 
     public class Ingredient

@@ -8,10 +8,10 @@ namespace Menu.Data
 {
     public interface IShopListData
     {
-        Task<Choice> GetShopList(string name);
-        Task<string> AddShopList(Choice choice);
+        Task<WeeklyChoice> GetShopList(string name);
+        Task<string> AddShopList(WeeklyChoice choice);
 
-        Task<string> UpdateShopList(Choice choice);
+        Task<string> UpdateShopList(WeeklyChoice choice);
 
         Task<string> DeleteShopList(string Id);
     }
@@ -30,7 +30,7 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<Choice> GetShopList(string Id)
+        public async Task<WeeklyChoice> GetShopList(string Id)
         {
             var request = new GetItemRequest
             {
@@ -42,11 +42,8 @@ namespace Menu.Data
             };
             try
             {
-                var choice = new Choice()
-                {
-                    MyChoice = new List<MyChoice>()
-                };
-
+                var choice = new WeeklyChoice();
+               
                 var response = await _dynamoDbClient.GetItemAsync(request);
                 if (response.Item != null && response.Item.Count > 0)
                 {
@@ -55,10 +52,9 @@ namespace Menu.Data
                     foreach (var dailyChoice in dailyChoiceList)
                     {
                         var dailyChoiceMap = dailyChoice.M;
-                        var existingChoice = new MyChoice
+                        var existingChoice = new DailyChoice
                         {
                             Day = dailyChoiceMap["Day"].S, // Get the day (e.g., "Monday")
-                            Dish = new List<string>()
                         };
                         var dishList = dailyChoiceMap["Dish"].L;
                         foreach (var dish in dishList)
@@ -73,18 +69,18 @@ namespace Menu.Data
                 }
                 else
                 {
-                    return new Choice();
+                    return new WeeklyChoice();
                 }
 
             }
             catch (Exception ex)
             {
                 // Log the error and return an empty list or handle as needed
-                return new Choice();  // Handle error gracefully
+                return new WeeklyChoice();  // Handle error gracefully
             }
         }
 
-        public async Task<string> AddShopList(Choice choice)
+        public async Task<string> AddShopList(WeeklyChoice choice)
         {
                 var putRequest = new PutItemRequest
                 {
@@ -126,7 +122,7 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> UpdateShopList(Choice choice)
+        public async Task<string> UpdateShopList(WeeklyChoice choice)
         {
             var updateRequest = new UpdateItemRequest
             {
