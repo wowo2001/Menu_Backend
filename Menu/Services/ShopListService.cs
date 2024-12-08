@@ -75,7 +75,6 @@ namespace Menu.Services
         }
         public async Task<AggregateList> AggregateShopList(string Id)
         {
-            Thread.Sleep(500);
             WeeklyChoice existingChoice = await _shopListData.GetShopList(Id);
             AggregateList aggregateList = new AggregateList();
             aggregateList.Id = Id;
@@ -134,7 +133,6 @@ namespace Menu.Services
 
         public async Task<AggregateList> GetPurchaseList(string Id)
         {
-            Thread.Sleep(500);
             return await _purchaseListData.GetPurchaseList(Id);
         }
 
