@@ -2,28 +2,29 @@
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
 using Menu.Models;
+using System.Xml.Linq;
 
 namespace Menu.Data
 {
-    public interface IPurchaseListData
+    public interface ILocationData
     {
-        Task<AggregateList> GetPurchaseList(string name);
+        Task<string> GetLocationData(string name);
 
-        Task<string> AddPurchaseList(AggregateList aggregateList);
+        Task<string> AddLocationData(NameLocation nameLocation);
 
-        Task<string> UpdatePurchaseList(AggregateList aggregateList);
+        Task<string> UpdateLocationData(NameLocation nameLocation);
 
-        Task<List<string>> GetAllPurchaseList();
+        Task<List<string>> GetAllLocationData();
 
-        Task<string> DeletePurchaseList(string Id);
+        Task<string> DeleteLocationData(string name);
 
     }
-    public class PurchaseListData : IPurchaseListData
+    public class LocationData : ILocationData
     {
         private readonly IAmazonDynamoDB _dynamoDbClient;
-        private readonly string _tableName = "PurchaseList";
+        private readonly string _tableName = "NameLocation";
 
-        public PurchaseListData()
+        public LocationData()
         {
             var awsCredentials = new BasicAWSCredentials("AKIA4T4OCILUI2NQVOMT", "iLmmKfz4PEVIsDx7lR0e54ZsS2LjvAkCrWOu2C+2");
             var config = new AmazonDynamoDBConfig
@@ -34,77 +35,49 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<AggregateList> GetPurchaseList(string Id)
+        public async Task<string> GetLocationData(string name)
         {
             var request = new GetItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
                 {
-                    { "Id", new AttributeValue { S = Id } }
+                    { "Name", new AttributeValue { S = name } }
                 }
             };
+            string location = "";
             try
             {
-                AggregateList aggregateList = new AggregateList();
-
                 var response = await _dynamoDbClient.GetItemAsync(request);
                 if (response.Item != null && response.Item.Count > 0)
                 {
-                    aggregateList.Id = Id;
-                    var ingredientList = response.Item["allIngredientList"].L;
-                    foreach (var ingredient in ingredientList)
-                    {
-                        var ingredientMap = ingredient.M;
-                        IngredientPurchase ingredient_from_database = new IngredientPurchase();
-                        ingredient_from_database.Unit = ingredientMap["unit"].S;
-                        ingredient_from_database.Name = ingredientMap["name"].S;
-                        ingredient_from_database.Amount = float.Parse(ingredientMap["amount"].S);
-                        ingredient_from_database.purchased = bool.Parse(ingredientMap["purchased"].S);
-                        ingredient_from_database.location = ingredientMap["location"].S;
-                        aggregateList.AllIngredientList.Add(ingredient_from_database);
-
-                    }
-                    return aggregateList;
+                    location = response.Item["Location"].S;
+                    return location;
                 }
                 else
                 {
-                    return new AggregateList();
+                    return location;
                 }
 
             }
             catch (Exception ex)
             {
-                // Log the error and return an empty list or handle as needed
-                return new AggregateList();  // Handle error gracefully
+                throw;  
             }
         }
 
-        public async Task<string> AddPurchaseList(AggregateList aggregateList)
+        public async Task<string> AddLocationData(NameLocation nameLocation)
         {
 
             var putRequest = new PutItemRequest
             {
                 TableName = _tableName,
                 Item = new Dictionary<string, AttributeValue>
-        {
-            { "Id", new AttributeValue { S = aggregateList.Id } }, // Partition Key (Name)
-            { "allIngredientList", new AttributeValue
-                {
-                    L = aggregateList.AllIngredientList.Select(i => new AttributeValue
-                    {
-                        M = new Dictionary<string, AttributeValue>
-                        {
-                            { "unit", new AttributeValue { S = i.Unit } },
-                            { "name", new AttributeValue { S = i.Name} },
-                            { "amount", new AttributeValue {S = i.Amount.ToString() } },
-                            { "purchased", new AttributeValue {S = i.purchased.ToString() } },
-                            { "location", new AttributeValue {S = i.location.ToString() } }
-                        }
-                    }).ToList() // Convert the list of ingredients to a DynamoDB list of maps
-                }
+            {
+                { "Name", new AttributeValue { S = nameLocation.Name } }, // Partition Key (Name)
+                { "Location", new AttributeValue { S = nameLocation.Location } }
+
             }
-        }
             };
 
             try
@@ -121,34 +94,24 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> UpdatePurchaseList(AggregateList aggregateList)
+        public async Task<string> UpdateLocationData(NameLocation nameLocation)
         {
             var updateRequest = new UpdateItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
             {
-                { "Id", new AttributeValue { S = aggregateList.Id } }  // Partition Key (Id)
+                { "Name", new AttributeValue { S = nameLocation.Name } }  // Partition Key (Id)
             },
-                UpdateExpression = "SET allIngredientList = :allIngredientList", // Update the 'Choice' attribute
+                UpdateExpression = "SET #Location = :Location", // Update the 'Choice' attribute
+                ExpressionAttributeNames = new Dictionary<string, string>
+        {
+            { "#Location", "Location" } // Map the reserved 'Location' to '#Location'
+        },
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-            {
-                { ":allIngredientList", new AttributeValue
-                    {
-                        L = aggregateList.AllIngredientList.Select(i => new AttributeValue
-                        {
-                            M = new Dictionary<string, AttributeValue>
-                        {
-                            { "unit", new AttributeValue { S = i.Unit } },
-                            { "name", new AttributeValue { S = i.Name} },
-                            { "amount", new AttributeValue {S = i.Amount.ToString() } },
-                            { "purchased", new AttributeValue {S = i.purchased.ToString() } },
-                            { "location", new AttributeValue {S = i.location.ToString() } }
-                        }
-                    }).ToList()
-                    }
-                }
-            }
+        {
+            { ":Location", new AttributeValue { S = nameLocation.Location } } // Use NameLocation.Location
+        }
             };
 
             try
@@ -165,9 +128,9 @@ namespace Menu.Data
             }
         }
 
-        public async Task<List<string>> GetAllPurchaseList()
+        public async Task<List<string>> GetAllLocationData()
         {
-            var projectionExpression = "Id";
+            var projectionExpression = "Name";
             var scanRequest = new ScanRequest
             {
                 TableName = _tableName,
@@ -182,9 +145,9 @@ namespace Menu.Data
                 // Iterate over the scan results and extract the 'Id' values
                 foreach (var item in result.Items)
                 {
-                    if (item.ContainsKey("Id"))
+                    if (item.ContainsKey("Name"))
                     {
-                        ids.Add(item["Id"].S);  // Add the 'Id' value to the list
+                        ids.Add(item["Name"].S);  // Add the 'Id' value to the list
                     }
                 }
 
@@ -198,9 +161,9 @@ namespace Menu.Data
                     // Add more 'Id' values to the list
                     foreach (var item in result.Items)
                     {
-                        if (item.ContainsKey("Id"))
+                        if (item.ContainsKey("Name"))
                         {
-                            ids.Add(item["Id"].S);
+                            ids.Add(item["Name"].S);
                         }
                     }
                 }
@@ -215,14 +178,14 @@ namespace Menu.Data
 
         }
 
-        public async Task<string> DeletePurchaseList(string Id)
+        public async Task<string> DeleteLocationData(string name)
         {
             var deleteRequest = new DeleteItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
         {
-            { "Id", new AttributeValue { S = Id } }  // Assuming "Name" is the partition key
+            { "Name", new AttributeValue { S = name } }  // Assuming "Name" is the partition key
         }
             };
 

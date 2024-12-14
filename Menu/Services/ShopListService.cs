@@ -18,6 +18,8 @@ namespace Menu.Services
         Task<string> UpdatePurchaseList(AggregateList aggregateList);
 
         Task<List<string>> GetAllPurchaseList();
+
+        Task<string> DeletePurchaseList(string id);
     }
 
     public class ShopListService : IShopListService
@@ -25,12 +27,14 @@ namespace Menu.Services
         private readonly IShopListData _shopListData;
         private readonly IMenuData _menuData;
         private readonly IPurchaseListData _purchaseListData;
+        private readonly ILocationService _locationService;
 
-        public ShopListService(IShopListData shopListData, IMenuData menuData, IPurchaseListData purchaseListData)
+        public ShopListService(IShopListData shopListData, IMenuData menuData, IPurchaseListData purchaseListData, ILocationService locationService)
         {
             _shopListData = shopListData;
             _menuData = menuData;
             _purchaseListData = purchaseListData;
+            _locationService = locationService;
         }
         public async Task<string> UpdateShopList(WeeklyChoice choice)
         {
@@ -100,7 +104,8 @@ namespace Menu.Services
                                 Name = dishIngredient.Name,
                                 Unit = dishIngredient.Unit,
                                 Amount = dishIngredient.Amount,
-                                purchased = false
+                                purchased = false,
+                                location = await _locationService.GetLocation(dishIngredient.Name)
                             };
                             aggregateList.AllIngredientList.Add(ingredientPurchase);
                         }
@@ -145,6 +150,17 @@ namespace Menu.Services
         {
             return await _purchaseListData.GetAllPurchaseList();
         }
+
+        public async Task<string> DeletePurchaseList(string id)
+        {
+            AggregateList existingAggregateList = await _purchaseListData.GetPurchaseList(id);
+            if (existingAggregateList.Id == null)
+            {
+                throw new ArgumentException("Purchase list does not exist");
+            }
+            return await _purchaseListData.DeletePurchaseList(id);
+        }
+
     }
 
     

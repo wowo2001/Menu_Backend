@@ -29,6 +29,8 @@ builder.Services.AddScoped<IMenuData, MenuData>();
 builder.Services.AddScoped<IShopListData, ShopListData>();
 builder.Services.AddScoped<IShopListService, ShopListService>();
 builder.Services.AddScoped<IPurchaseListData, PurchaseListData>();
+builder.Services.AddScoped<ILocationData, LocationData>();
+builder.Services.AddScoped<ILocationService, LocationService>();
 
 
 

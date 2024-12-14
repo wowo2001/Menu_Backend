@@ -106,8 +106,9 @@ namespace Menu.Controllers
             {
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string id = requestData.Id;
-                var message = await _shopListService.DeleteShopList(id);
-                return Ok(message);
+                string message1 = await _shopListService.DeleteShopList(id);
+                string message2 = await _shopListService.DeletePurchaseList(id);
+                return Ok(message1 + "\n" + message2);
             }
             catch (ArgumentException ex)
             {
@@ -142,5 +143,53 @@ namespace Menu.Controllers
             var message = await _shopListService.GetAllPurchaseList();
             return Ok(message);
         }
+
+
     }
+
+    [ApiController]
+    [Route("Location")]
+    public class LocationController : ControllerBase
+    {
+
+        private readonly ILocationService _locationService;
+
+        public LocationController(ILocationService locationService)
+        {
+            _locationService = locationService;
+        }
+
+
+        [HttpGet("GetLocation")]
+        public async Task<ActionResult<string>> GetLocation([FromQuery] string name)
+        {
+            var message = await _locationService.GetLocation(name);
+            return Ok(message);
+        }
+
+        [HttpPost("EditLocation")]
+        public async Task<ActionResult<string>> EditLocation([FromBody] NameLocation nameLocation)
+        {
+            var message = await _locationService.EditLocation(nameLocation);
+            return Ok(message);
+        }
+
+        [HttpPost("DeleteLocation")]
+        public async Task<ActionResult<string>> DeleteLocation([FromBody] object request)
+        {
+            try
+            {
+                var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
+                string name = requestData.Name;
+                var message = await _locationService.DeleteLocation(name);
+                return Ok(message);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);  // Return a 400 BadRequest with the error message
+            }
+        }
+
+    }
+
 }
