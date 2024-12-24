@@ -1,4 +1,3 @@
-using Amazon.Runtime.Internal;
 using Menu.Models;
 using Menu.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -61,6 +60,18 @@ namespace Menu.Controllers
             {
                 return BadRequest(ex.Message);  // Return a 400 BadRequest with the error message
             }
+        }
+
+        [HttpGet("GetIngredientUnit")]
+        public async Task<ActionResult<string>> GetIngredientUnit([FromQuery] string ingredientName)
+        {
+            if (string.IsNullOrEmpty(ingredientName))
+            {
+                return BadRequest("Ingredient name must be provided.");
+            }
+
+            var message = await _menuService.GetIngredientUnit(ingredientName);
+            return Ok(message);
         }
 
 

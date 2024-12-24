@@ -12,6 +12,8 @@ namespace Menu.Services
         Task<string> EditMenu(MenuDetails menu);
 
         Task<string> DeleteMenu(string name);
+
+        Task<string> GetIngredientUnit(string ingredientName);
     }
     public class MenuService : IMenuService
     {
@@ -49,6 +51,30 @@ namespace Menu.Services
                 throw new ArgumentException("Menu does not exist");
             }
             return await _menuData.DeleteMenu(name);
+        }
+
+        public async Task<string> GetIngredientUnit(string ingredientName)
+        {
+            MenuList allMenu = await _menuData.GetMenu("All");
+            List<Ingredient> overlIngredientList = new List<Ingredient>(); 
+            foreach (string menu in allMenu.Name)
+            {
+                List<Ingredient> menuIngredientList = await _menuData.GetIngredient(menu);
+                foreach (Ingredient menuIngredient in menuIngredientList)
+                {
+                    overlIngredientList.Add(menuIngredient);
+                }
+                foreach (Ingredient ingredient in overlIngredientList)
+                {
+                    if (ingredient.Name.Equals(ingredientName))
+                    {
+                        return ingredient.Unit;
+                    }
+                }
+            }
+            
+            return "";
+
         }
 
     }
