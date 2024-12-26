@@ -1,5 +1,6 @@
 ﻿using Menu.Data;
 using Menu.Models;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
@@ -75,7 +76,9 @@ namespace Menu.Services
                     }
                 }
             }
-            return await GetLocation(ingredientNameList);
+            List<NameLocation> ingredientLocationList = await GetLocation(ingredientNameList);
+            var sortedIngredients = ingredientLocationList.OrderBy(i => i.Location).ToList();
+            return sortedIngredients;
         }
     }
 }
