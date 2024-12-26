@@ -172,16 +172,16 @@ namespace Menu.Controllers
 
 
         [HttpGet("GetLocation")]
-        public async Task<ActionResult<string>> GetLocation([FromQuery] string name)
+        public async Task<ActionResult<NameLocation>> GetLocation([FromQuery] List<string> nameList)
         {
-            var message = await _locationService.GetLocation(name);
+            var message = await _locationService.GetLocation(nameList);
             return Ok(message);
         }
 
         [HttpPost("EditLocation")]
-        public async Task<ActionResult<string>> EditLocation([FromBody] NameLocation nameLocation)
+        public async Task<ActionResult<string>> EditLocation([FromBody] List<NameLocation> namelocationList)
         {
-            var message = await _locationService.EditLocation(nameLocation);
+            var message = await _locationService.EditLocation(namelocationList);
             return Ok(message);
         }
 
@@ -199,6 +199,13 @@ namespace Menu.Controllers
             {
                 return BadRequest(ex.Message);  // Return a 400 BadRequest with the error message
             }
+        }
+
+        [HttpGet("GetAllIngredientLocationList")]
+        public async Task<ActionResult<NameLocation>> GetAllIngredientLocationList()
+        {
+            var message = await _locationService.GetAllIngredientLocationList();
+            return Ok(message);
         }
 
     }

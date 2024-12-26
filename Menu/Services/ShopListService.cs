@@ -99,13 +99,14 @@ namespace Menu.Services
                         }
                         if (!inAggregateList)
                         {
+                            List<NameLocation> nameLocationList = await _locationService.GetLocation(new List<string> { dishIngredient.Name });
                             IngredientPurchase ingredientPurchase = new IngredientPurchase()
                             {
                                 Name = dishIngredient.Name,
                                 Unit = dishIngredient.Unit,
                                 Amount = dishIngredient.Amount,
                                 purchased = false,
-                                location = await _locationService.GetLocation(dishIngredient.Name)
+                                location = nameLocationList[0].Location
                             };
                             aggregateList.AllIngredientList.Add(ingredientPurchase);
                         }
