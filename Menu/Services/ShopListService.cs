@@ -71,11 +71,11 @@ namespace Menu.Services
         public async Task<string> DeleteShopList(string id)
         {
             WeeklyChoice existingChoice = await _shopListData.GetShopList(id);
-            if (existingChoice.Id == null)
+            if (existingChoice.Id != null)
             {
-                throw new ArgumentException("Menu does not exist");
+                await _shopListData.DeleteShopList(id);
             }
-            return await _shopListData.DeleteShopList(id);
+            return "Shop list menu does not exist";
         }
         public async Task<AggregateList> AggregateShopList(string Id)
         {

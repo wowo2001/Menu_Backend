@@ -132,19 +132,26 @@ namespace Menu.Data
                     emptyIndex = i;
                 }
             }
-            if (emptyIndex != -1)
+            if (emptyIndex != -1) //If that day shoplist is empty, remove that day from weekly choice list
             {
                 choice.MyChoice.RemoveAt(emptyIndex);
             }
-            var updateRequest = new UpdateItemRequest
+            if (choice.MyChoice.Count == 0) //If weekly choice is empty is empty after remove that day shoplist, then remove the whole list
             {
-                TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                await DeleteShopList(choice.Id);
+                return "No shoplist in this menu id is available, menu id is deleted";
+            }
+            else
+            {
+                var updateRequest = new UpdateItemRequest
+                {
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
             {
                 { "Id", new AttributeValue { S = choice.Id } }  // Partition Key (Id)
             },
-                UpdateExpression = "SET Choice = :choice", // Update the 'Choice' attribute
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    UpdateExpression = "SET Choice = :choice", // Update the 'Choice' attribute
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
             {
                 { ":choice", new AttributeValue
                     {
@@ -163,19 +170,20 @@ namespace Menu.Data
                     }
                 }
             }
-            };
+                };
 
-            try
-            {
-                // Perform the DynamoDB UpdateItemAsync operation
-                await _dynamoDbClient.UpdateItemAsync(updateRequest);
-                return "Item updated"; // Return success message after updating the item
-            }
-            catch (Exception ex)
-            {
-                // Log the exception and handle any errors
-                Console.WriteLine($"Error updating item in DynamoDB: {ex.Message}");
-                throw; // Rethrow the exception to handle it at a higher level if needed
+                try
+                {
+                    // Perform the DynamoDB UpdateItemAsync operation
+                    await _dynamoDbClient.UpdateItemAsync(updateRequest);
+                    return "Item updated"; // Return success message after updating the item
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception and handle any errors
+                    Console.WriteLine($"Error updating item in DynamoDB: {ex.Message}");
+                    throw; // Rethrow the exception to handle it at a higher level if needed
+                }
             }
         }
 
