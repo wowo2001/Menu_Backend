@@ -124,6 +124,18 @@ namespace Menu.Data
 
         public async Task<string> UpdateShopList(WeeklyChoice choice)
         {
+            int emptyIndex = -1;
+            for (int i = 0; i < choice.MyChoice.Count; i++)
+            {
+                if (choice.MyChoice[i].Dish.Count == 0)
+                {
+                    emptyIndex = i;
+                }
+            }
+            if (emptyIndex != -1)
+            {
+                choice.MyChoice.RemoveAt(emptyIndex);
+            }
             var updateRequest = new UpdateItemRequest
             {
                 TableName = _tableName,
