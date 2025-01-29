@@ -62,6 +62,7 @@ namespace Menu.Data
                         ingredient_from_database.Amount = float.Parse(ingredientMap["amount"].S);
                         ingredient_from_database.purchased = bool.Parse(ingredientMap["purchased"].S);
                         ingredient_from_database.location = ingredientMap["location"].S;
+                        ingredient_from_database.source = ingredientMap["source"].S;
                         aggregateList.AllIngredientList.Add(ingredient_from_database);
 
                     }
@@ -99,7 +100,8 @@ namespace Menu.Data
                             { "name", new AttributeValue { S = i.Name} },
                             { "amount", new AttributeValue {S = i.Amount.ToString() } },
                             { "purchased", new AttributeValue {S = i.purchased.ToString() } },
-                            { "location", new AttributeValue {S = i.location.ToString() } }
+                            { "location", new AttributeValue {S = i.location.ToString() } },
+                            { "source", new AttributeValue {S = i.source.ToString() } }
                         }
                     }).ToList() // Convert the list of ingredients to a DynamoDB list of maps
                 }
@@ -143,7 +145,8 @@ namespace Menu.Data
                             { "name", new AttributeValue { S = i.Name} },
                             { "amount", new AttributeValue {S = i.Amount.ToString() } },
                             { "purchased", new AttributeValue {S = i.purchased.ToString() } },
-                            { "location", new AttributeValue {S = i.location.ToString() } }
+                            { "location", new AttributeValue {S = i.location.ToString() } },
+                            { "source", new AttributeValue {S = i.source.ToString()!=null? i.source.ToString():"extra"} }
                         }
                     }).ToList()
                     }

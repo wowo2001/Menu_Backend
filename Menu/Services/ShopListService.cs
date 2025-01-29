@@ -106,14 +106,15 @@ namespace Menu.Services
                                 Unit = dishIngredient.Unit,
                                 Amount = dishIngredient.Amount,
                                 purchased = false,
-                                location = nameLocationList[0].Location
+                                location = nameLocationList[0].Location,
+                                source = "menu"
                             };
                             aggregateList.AllIngredientList.Add(ingredientPurchase);
                         }
                         else {
                             for(int i=0; i< aggregateList.AllIngredientList.Count; i++)
                             {
-                                if (dishIngredient.Name == aggregateList.AllIngredientList[i].Name)
+                                if (dishIngredient.Name == aggregateList.AllIngredientList[i].Name && dishIngredient.Unit == aggregateList.AllIngredientList[i].Unit)
                                 {
                                     aggregateList.AllIngredientList[i].Amount = aggregateList.AllIngredientList[i].Amount + dishIngredient.Amount;
                                 }

@@ -5,5 +5,7 @@
         public bool purchased { get; set; }
 
         public string location { get; set; }
+
+        public string source { get; set; }
     }
 }
