@@ -50,7 +50,7 @@ public class TokenToUsernameMiddleware
         try
         {
             var data = new {
-                token = token
+                Token = token
             };
             var json = JsonSerializer.Serialize(data);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
