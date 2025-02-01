@@ -8,17 +8,17 @@ namespace Menu.Data
 {
     public interface IShopListData
     {
-        Task<WeeklyChoice> GetShopList(string name);
-        Task<string> AddShopList(WeeklyChoice choice);
+        Task<WeeklyChoice> GetShopList(string name, string username);
+        Task<string> AddShopList(WeeklyChoice choice, string username);
 
-        Task<string> UpdateShopList(WeeklyChoice choice);
+        Task<string> UpdateShopList(WeeklyChoice choice, string username);
 
-        Task<string> DeleteShopList(string Id);
+        Task<string> DeleteShopList(string Id, string username);
     }
     public class ShopListData : IShopListData
     {
         private readonly IAmazonDynamoDB _dynamoDbClient;
-        private readonly string _tableName = "ShopList";
+        private readonly string _tableName = "ShopList_New";
         public ShopListData()
         {
             var awsCredentials = new BasicAWSCredentials("AKIA4T4OCILUI2NQVOMT", "iLmmKfz4PEVIsDx7lR0e54ZsS2LjvAkCrWOu2C+2");
@@ -30,25 +30,29 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<WeeklyChoice> GetShopList(string Id)
+        public async Task<WeeklyChoice> GetShopList(string Id, string username)
         {
-            var request = new GetItemRequest
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                IndexName = "Username-Id-index",
+                FilterExpression = "Id = :id and Username = :username",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { "Id", new AttributeValue { S = Id } }
+                    { ":id", new AttributeValue { S = Id } },
+                    { ":username", new AttributeValue { S = username } }
                 }
             };
             try
             {
                 var choice = new WeeklyChoice();
                
-                var response = await _dynamoDbClient.GetItemAsync(request);
-                if (response.Item != null && response.Item.Count > 0)
+                var response = await _dynamoDbClient.ScanAsync(request);
+                if (response.Items != null && response.Items.Count > 0)
                 {
                     choice.Id = Id;
-                    var dailyChoiceList = response.Item["Choice"].L;
+                    var item = response.Items.FirstOrDefault();
+                    var dailyChoiceList = item["Choice"].L;
                     foreach (var dailyChoice in dailyChoiceList)
                     {
                         var dailyChoiceMap = dailyChoice.M;
@@ -80,13 +84,15 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> AddShopList(WeeklyChoice choice)
+        public async Task<string> AddShopList(WeeklyChoice choice, string username)
         {
                 var putRequest = new PutItemRequest
                 {
                     TableName = _tableName,
                     Item = new Dictionary<string, AttributeValue>
         {
+            { "Guid", new AttributeValue { S = Guid.NewGuid().ToString() } },
+            { "Username", new AttributeValue { S = username } },
             { "Id", new AttributeValue { S = choice.Id } }, // Partition Key (Name)
             { "Choice", new AttributeValue
                 {
@@ -122,7 +128,7 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> UpdateShopList(WeeklyChoice choice)
+        public async Task<string> UpdateShopList(WeeklyChoice choice, string username)
         {
             int emptyIndex = -1;
             for (int i = 0; i < choice.MyChoice.Count; i++)
@@ -138,17 +144,18 @@ namespace Menu.Data
             }
             if (choice.MyChoice.Count == 0) //If weekly choice is empty is empty after remove that day shoplist, then remove the whole list
             {
-                await DeleteShopList(choice.Id);
+                await DeleteShopList(choice.Id, username);
                 return "No shoplist in this menu id is available, menu id is deleted";
             }
             else
             {
+                var guid = await FindId(choice.Id, username);
                 var updateRequest = new UpdateItemRequest
                 {
                     TableName = _tableName,
                     Key = new Dictionary<string, AttributeValue>
             {
-                { "Id", new AttributeValue { S = choice.Id } }  // Partition Key (Id)
+                { "Guid", new AttributeValue { S = guid } }  // Partition Key (Id)
             },
                     UpdateExpression = "SET Choice = :choice", // Update the 'Choice' attribute
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
@@ -187,14 +194,15 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> DeleteShopList(string Id)
+        public async Task<string> DeleteShopList(string Id, string username)
         {
+            var guid = await FindId(Id, username);
             var deleteRequest = new DeleteItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
         {
-            { "Id", new AttributeValue { S = Id } }  // Assuming "Name" is the partition key
+            { "Guid", new AttributeValue { S = guid } }  // Assuming "Name" is the partition key
         }
             };
 
@@ -219,6 +227,30 @@ namespace Menu.Data
                 return $"Error deleting menu: {ex.Message}";
             }
 
+        }
+
+        private async Task<string> FindId(string id, string username)
+        {
+            var request = new ScanRequest
+            {
+                TableName = _tableName,
+                IndexName = "Username-Id-index",
+                FilterExpression = "Id = :id and Username = :username",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":id", new AttributeValue { S = id } },
+                    { ":username", new AttributeValue { S = username } }
+                }
+            };
+
+            var response = await _dynamoDbClient.ScanAsync(request);
+            if (response.Items != null && response.Items.Count > 0)
+            {
+                var item = response.Items.FirstOrDefault();
+                return item["Guid"].S;
+
+            }
+            return null;
         }
     }
     
