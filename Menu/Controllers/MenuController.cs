@@ -174,14 +174,16 @@ namespace Menu.Controllers
         [HttpGet("GetLocation")]
         public async Task<ActionResult<NameLocation>> GetLocation([FromQuery] List<string> nameList)
         {
-            var message = await _locationService.GetLocation(nameList);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.GetLocation(nameList, username);
             return Ok(message);
         }
 
         [HttpPost("EditLocation")]
         public async Task<ActionResult<string>> EditLocation([FromBody] List<NameLocation> namelocationList)
         {
-            var message = await _locationService.EditLocation(namelocationList);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.EditLocation(namelocationList, username);
             return Ok(message);
         }
 
@@ -190,9 +192,10 @@ namespace Menu.Controllers
         {
             try
             {
+                var username = HttpContext.Items["Username"].ToString();
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string name = requestData.Name;
-                var message = await _locationService.DeleteLocation(name);
+                var message = await _locationService.DeleteLocation(name, username);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -204,7 +207,8 @@ namespace Menu.Controllers
         [HttpGet("GetAllIngredientLocationList")]
         public async Task<ActionResult<NameLocation>> GetAllIngredientLocationList()
         {
-            var message = await _locationService.GetAllIngredientLocationList();
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.GetAllIngredientLocationList(username);
             return Ok(message);
         }
 
