@@ -1,3 +1,4 @@
+using Amazon.Runtime.Internal;
 using Menu.Models;
 using Menu.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,14 +23,15 @@ namespace Menu.Controllers
             {
                 return BadRequest("Name must be provided.");
             }
-
-            var message = await _menuService.GetIngredient(name);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetIngredient(name, username);
             return Ok(message);
         }
         [HttpGet("GetMenu")]
         public async Task<ActionResult<string>> GetMenu([FromQuery] string category)
         {
-            var message = await _menuService.GetMenu(category);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetMenu(category, username);
             return Ok(message);
         }
         [HttpPost("EditMenu")]
@@ -39,7 +41,8 @@ namespace Menu.Controllers
             {
                 return BadRequest("Invalid input.");
             }
-            var message = await _menuService.EditMenu(request);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.EditMenu(request, username);
             return Ok(message);
         }
         [HttpPost("DeleteMenu")]
@@ -53,7 +56,8 @@ namespace Menu.Controllers
             {
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string name = requestData.Name;
-                var message = await _menuService.DeleteMenu(name);
+                var username = HttpContext.Items["Username"].ToString();
+                var message = await _menuService.DeleteMenu(name, username);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -69,8 +73,8 @@ namespace Menu.Controllers
             {
                 return BadRequest("Ingredient name must be provided.");
             }
-
-            var message = await _menuService.GetIngredientUnit(ingredientName);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetIngredientUnit(ingredientName, username);
             return Ok(message);
         }
 

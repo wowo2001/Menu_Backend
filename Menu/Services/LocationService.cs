@@ -64,10 +64,10 @@ namespace Menu.Services
         public async Task<List<NameLocation>> GetAllIngredientLocationList(string username)
         {
             List<string> ingredientNameList = new List<string>();
-            MenuList allMenu = await _menuData.GetMenu("All");
+            MenuList allMenu = await _menuData.GetMenu("All", username);
             foreach (string menu in allMenu.Name)
             {
-                List<Ingredient> menuIngredientList = await _menuData.GetIngredient(menu);
+                List<Ingredient> menuIngredientList = await _menuData.GetIngredient(menu, username);
                 foreach (Ingredient menuIngredient in menuIngredientList)
                 {
                     if (!ingredientNameList.Contains(menuIngredient.Name))

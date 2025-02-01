@@ -86,7 +86,7 @@ namespace Menu.Services
             {
                 foreach(var eachDish in dailyChoice.Dish)
                 {
-                    var dishIngredientList = await _menuData.GetIngredient(eachDish);
+                    var dishIngredientList = await _menuData.GetIngredient(eachDish, "wowo2001");
                     foreach (var dishIngredient in dishIngredientList)
                     {
                         bool inAggregateList = false;

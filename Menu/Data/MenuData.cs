@@ -1,24 +1,25 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
+using Amazon.Runtime.Internal;
 using Menu.Models;
 namespace Menu.Data
 {
     public interface IMenuData
     {
-        Task<List<Ingredient>> GetIngredient(string name);
-        Task<MenuList> GetMenu(string category);
+        Task<List<Ingredient>> GetIngredient(string name, string username);
+        Task<MenuList> GetMenu(string category, string username);
 
-        Task<string> EditMenu(MenuDetails menu);
+        Task<string> EditMenu(MenuDetails menu, string username);
 
-        Task<string> AddMenu(MenuDetails menu);
+        Task<string> AddMenu(MenuDetails menu, string username);
 
-        Task<string> DeleteMenu(string name);
+        Task<string> DeleteMenu(string name, string username);
     }
     public class MenuData : IMenuData
     {
         private readonly IAmazonDynamoDB _dynamoDbClient;
-        private readonly string _tableName = "Menu";
+        private readonly string _tableName = "Menu_New";
         public MenuData()
         {
             var awsCredentials = new BasicAWSCredentials("AKIA4T4OCILUI2NQVOMT", "iLmmKfz4PEVIsDx7lR0e54ZsS2LjvAkCrWOu2C+2");
@@ -30,66 +31,75 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<List<Ingredient>> GetIngredient(string name)
+        public async Task<List<Ingredient>> GetIngredient(string name, string username)
         {
+
+            var request = new ScanRequest
             {
-                var request = new GetItemRequest
+                TableName = _tableName,
+                IndexName = "Username-Name-index",
+                FilterExpression = "#name = :name and Username = :username",
+                ExpressionAttributeNames = new Dictionary<string, string>
                 {
-                    TableName = _tableName,
-                    Key = new Dictionary<string, AttributeValue>
-                {
-                    { "Name", new AttributeValue { S = name } }
-                }
-                };
+                    { "#name", "Name" }  // Alias the reserved keyword "Name" to "#name"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                { ":name", new AttributeValue { S = name } },
+                { ":username", new AttributeValue { S = username } }
+            }
+            };
 
-                try
+            try
+            {
+                var response = await _dynamoDbClient.ScanAsync(request);
+
+                if (response.Items != null && response.Items.Count > 0)
                 {
-                    var response = await _dynamoDbClient.GetItemAsync(request);
-                    if (response.Item != null && response.Item.Count > 0)
+                    var item = response.Items.FirstOrDefault();
+                    // Get the 'Ingredient' list from the response
+                    var ingredientList = item["Ingredient"].L;
+
+
+                    // Prepare a list to hold the ingredient details
+                    var ingredients = new List<Ingredient>();
+
+                    foreach (var ingredient in ingredientList)
                     {
-                        // Get the 'Ingredient' list from the response
-                        var ingredientList = response.Item["Ingredient"].L;
-
-
-                        // Prepare a list to hold the ingredient details
-                        var ingredients = new List<Ingredient>();
-
-                        foreach (var ingredient in ingredientList)
+                        // Each ingredient is a map (M) containing details like Unit, Name, and Amount
+                        var ingredientMap = ingredient.M;
+                        float amount;
+                        float.TryParse(ingredientMap["Amount"].N, out amount);
+                        // Create a dictionary for each ingredient
+                        var ingredientDetails = new Ingredient()
                         {
-                            // Each ingredient is a map (M) containing details like Unit, Name, and Amount
-                            var ingredientMap = ingredient.M;
-                            float amount;
-                            float.TryParse(ingredientMap["Amount"].N, out amount);
-                            // Create a dictionary for each ingredient
-                            var ingredientDetails = new Ingredient()
-                            {
-                                Unit = ingredientMap["Unit"].S,
-                                Name = ingredientMap["Name"].S,
-                                Amount = amount
-                            };
+                            Unit = ingredientMap["Unit"].S,
+                            Name = ingredientMap["Name"].S,
+                            Amount = amount
+                        };
 
-                            // Add the ingredient dictionary to the list
-                            ingredients.Add(ingredientDetails);
-                        }
-
-
-                        // Return the list of ingredient dictionaries
-                        return ingredients;
+                        // Add the ingredient dictionary to the list
+                        ingredients.Add(ingredientDetails);
                     }
-                    else
-                    {
-                        return new List<Ingredient>();  // Return empty list if item not found
-                    }
+
+
+                    // Return the list of ingredient dictionaries
+                    return ingredients;
                 }
-                catch (Exception ex)
+                else
                 {
-                    // Log the error and return an empty list or handle as needed
-                    return new List<Ingredient>();  // Handle error gracefully
+                    return new List<Ingredient>();  // Return empty list if item not found
                 }
             }
+            catch (Exception ex)
+            {
+                // Log the error and return an empty list or handle as needed
+                return new List<Ingredient>();  // Handle error gracefully
+            }
+
         }
 
-        public async Task<MenuList> GetMenu(string category)
+        public async Task<MenuList> GetMenu(string category, string username)
         {
             ScanRequest request;
             if (category != "All")
@@ -97,17 +107,24 @@ namespace Menu.Data
                 request = new ScanRequest
                 {
                     TableName = _tableName,
-                    FilterExpression = "Category = :category",
+                    IndexName = "Username-Category-index",
+                    FilterExpression = "Category = :category  and Username = :username",
                     ExpressionAttributeValues = new Dictionary<string, AttributeValue>
-            {
-                { ":category", new AttributeValue { S = category } }
-            }
+                    {
+                        { ":category", new AttributeValue { S = category } },
+                        { ":username", new AttributeValue { S = username } }
+                    }
                 };
             }
             else {
                 request = new ScanRequest
                 {
-                    TableName = _tableName
+                    TableName = _tableName,
+                    FilterExpression = " Username = :username",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        { ":username", new AttributeValue { S = username } }
+                    }
                 };
             }
             try
@@ -143,17 +160,24 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> EditMenu(MenuDetails menu)
+        public async Task<string> EditMenu(MenuDetails menu, string username)
         {
-            var updateRequest = new UpdateItemRequest
+            var id = await FindId(menu.Name, username);
+            if (id == null)
             {
-                TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                return "Item not found";
+            }
+            else
+            {
+                var updateRequest = new UpdateItemRequest
+                {
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
         {
-            { "Name", new AttributeValue { S = menu.Name } }  // Use the 'Name' as the key
+            { "Id", new AttributeValue { S = id } }  // Use the 'Name' as the key
         },
-                UpdateExpression = "SET Category = :category, Ingredient = :ingredient",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    UpdateExpression = "SET Category = :category, Ingredient = :ingredient",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
         {
             { ":category", new AttributeValue { S = menu.Category } },
             { ":ingredient", new AttributeValue { L = menu.Ingredient.Select(i => new AttributeValue
@@ -166,27 +190,30 @@ namespace Menu.Data
                     }
                 }).ToList() } }
         }
-            };
+                };
 
-            try
-            {
-                var response = await _dynamoDbClient.UpdateItemAsync(updateRequest);
-                return "Item successfully updated.";
-            }
-            catch (Exception ex)
-            {
-                // Log and handle exception
-                return "Item Failed to updated.";
+                try
+                {
+                    var response = await _dynamoDbClient.UpdateItemAsync(updateRequest);
+                    return "Item successfully updated.";
+                }
+                catch (Exception ex)
+                {
+                    // Log and handle exception
+                    return "Item Failed to updated.";
+                }
             }
         }
 
-        public async Task<string> AddMenu(MenuDetails menu)
+        public async Task<string> AddMenu(MenuDetails menu, string username)
         {
             var putRequest = new PutItemRequest
             {
                 TableName = _tableName,
                 Item = new Dictionary<string, AttributeValue>
         {
+            {"Id", new AttributeValue { S = Guid.NewGuid().ToString() }  },
+            {"Username", new AttributeValue { S = username }  },
             { "Name", new AttributeValue { S = menu.Name } }, // Partition Key (Name)
             { "Category", new AttributeValue { S = menu.Category } }, // Category field
             { "Ingredient", new AttributeValue
@@ -227,38 +254,74 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> DeleteMenu(string name)
+        public async Task<string> DeleteMenu(string name, string username)
         {
-            var deleteRequest = new DeleteItemRequest
+            var id = await FindId(name, username);
+            if (id == null)
+            {
+                return "Item not found";
+            }
+            else
+            {
+                var deleteRequest = new DeleteItemRequest
+                {
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
+        {
+            { "Id", new AttributeValue { S = id } }  // Assuming "Name" is the partition key
+        }
+                };
+
+                try
+                {
+                    // Perform the delete operation
+                    var response = await _dynamoDbClient.DeleteItemAsync(deleteRequest);
+
+                    // Check if the delete operation was successful
+                    if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        return "Menu item successfully deleted.";  // Return success message
+                    }
+                    else
+                    {
+                        return "Failed to delete the menu item.";  // If something goes wrong with the delete
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Handle any errors during the delete operation
+                    return $"Error deleting menu: {ex.Message}";
+                }
+            }
+
+        }
+
+        private async Task<string> FindId(string name, string username)
+        {
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
-        {
-            { "Name", new AttributeValue { S = name } }  // Assuming "Name" is the partition key
-        }
+                IndexName = "Username-Name-index",
+                FilterExpression = "#name = :name and Username = :username",
+                ExpressionAttributeNames = new Dictionary<string, string>
+                {
+                    { "#name", "Name" }  // Alias the reserved keyword "Name" to "#name"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":name", new AttributeValue { S = name } },
+                    { ":username", new AttributeValue { S = username } }
+                }
             };
 
-            try
+            var response = await _dynamoDbClient.ScanAsync(request);
+            if (response.Items != null && response.Items.Count > 0)
             {
-                // Perform the delete operation
-                var response = await _dynamoDbClient.DeleteItemAsync(deleteRequest);
+                var item = response.Items.FirstOrDefault();
+                return item["Id"].S;
 
-                // Check if the delete operation was successful
-                if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
-                {
-                    return "Menu item successfully deleted.";  // Return success message
-                }
-                else
-                {
-                    return "Failed to delete the menu item.";  // If something goes wrong with the delete
-                }
             }
-            catch (Exception ex)
-            {
-                // Handle any errors during the delete operation
-                return $"Error deleting menu: {ex.Message}";
-            }
-
+            return null;
         }
 
 
