@@ -46,7 +46,7 @@ public class TokenToUsernameMiddleware
     private async Task<string> GetUsernameFromTokenAsync(string token)
     {
         var client = new HttpClient();
-        var url = "http://13.236.194.94:4000/authentication/getUsername";
+        var url = "http://3.106.114.202:4000/authentication/getUsername";
         try
         {
             var data = new {
