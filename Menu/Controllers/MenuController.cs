@@ -1,3 +1,4 @@
+using Amazon.Runtime.Internal;
 using Menu.Models;
 using Menu.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -22,14 +23,15 @@ namespace Menu.Controllers
             {
                 return BadRequest("Name must be provided.");
             }
-
-            var message = await _menuService.GetIngredient(name);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetIngredient(name, username);
             return Ok(message);
         }
         [HttpGet("GetMenu")]
         public async Task<ActionResult<string>> GetMenu([FromQuery] string category)
         {
-            var message = await _menuService.GetMenu(category);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetMenu(category, username);
             return Ok(message);
         }
         [HttpPost("EditMenu")]
@@ -39,7 +41,8 @@ namespace Menu.Controllers
             {
                 return BadRequest("Invalid input.");
             }
-            var message = await _menuService.EditMenu(request);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.EditMenu(request, username);
             return Ok(message);
         }
         [HttpPost("DeleteMenu")]
@@ -53,7 +56,8 @@ namespace Menu.Controllers
             {
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string name = requestData.Name;
-                var message = await _menuService.DeleteMenu(name);
+                var username = HttpContext.Items["Username"].ToString();
+                var message = await _menuService.DeleteMenu(name, username);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -69,8 +73,8 @@ namespace Menu.Controllers
             {
                 return BadRequest("Ingredient name must be provided.");
             }
-
-            var message = await _menuService.GetIngredientUnit(ingredientName);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _menuService.GetIngredientUnit(ingredientName, username);
             return Ok(message);
         }
 
@@ -94,15 +98,16 @@ namespace Menu.Controllers
             {
                 return BadRequest("Invalid input.");
             }
-            var message = await _shopListService.UpdateShopList(request);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.UpdateShopList(request, username);
             return Ok(message);
         }
 
         [HttpGet("GetShopList")]
         public async Task<ActionResult<WeeklyChoice>> GetShopList([FromQuery] string Id)
         {
-
-            var message = await _shopListService.GetShopList(Id);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.GetShopList(Id, username);
             return Ok(message);
         }
 
@@ -115,10 +120,11 @@ namespace Menu.Controllers
             }
             try
             {
+                var username = HttpContext.Items["Username"].ToString();
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string id = requestData.Id;
-                string message1 = await _shopListService.DeleteShopList(id);
-                string message2 = await _shopListService.DeletePurchaseList(id);
+                string message1 = await _shopListService.DeleteShopList(id, username);
+                string message2 = await _shopListService.DeletePurchaseList(id, username);
                 return Ok(message1 + "\n" + message2);
             }
             catch (ArgumentException ex)
@@ -130,28 +136,32 @@ namespace Menu.Controllers
         [HttpGet("AggregateList")]
         public async Task<ActionResult<AggregateList>> AggregateShopList([FromQuery] string id)
         {
-            var message = await _shopListService.AggregateShopList(id);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.AggregateShopList(id, username);
             return Ok(message);
         }
 
         [HttpGet("GetPurchaseList")]
         public async Task<ActionResult<AggregateList>> GetPurchaseList([FromQuery] string id)
         {
-            var message = await _shopListService.GetPurchaseList(id);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.GetPurchaseList(id, username);
             return Ok(message);
         }
 
         [HttpPost("UpdatePurchaseList")]
         public async Task<ActionResult<AggregateList>> UpdatePurchaseList([FromBody] AggregateList aggregateList)
         {
-            var message = await _shopListService.UpdatePurchaseList(aggregateList);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.UpdatePurchaseList(aggregateList, username);
             return Ok(message);
         }
 
         [HttpGet("GetAllPurchaseList")]
         public async Task<ActionResult<List<string>>> GetAllPurchaseList()
         {
-            var message = await _shopListService.GetAllPurchaseList();
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _shopListService.GetAllPurchaseList(username);
             return Ok(message);
         }
 
@@ -174,14 +184,16 @@ namespace Menu.Controllers
         [HttpGet("GetLocation")]
         public async Task<ActionResult<NameLocation>> GetLocation([FromQuery] List<string> nameList)
         {
-            var message = await _locationService.GetLocation(nameList);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.GetLocation(nameList, username);
             return Ok(message);
         }
 
         [HttpPost("EditLocation")]
         public async Task<ActionResult<string>> EditLocation([FromBody] List<NameLocation> namelocationList)
         {
-            var message = await _locationService.EditLocation(namelocationList);
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.EditLocation(namelocationList, username);
             return Ok(message);
         }
 
@@ -190,9 +202,10 @@ namespace Menu.Controllers
         {
             try
             {
+                var username = HttpContext.Items["Username"].ToString();
                 var requestData = JsonConvert.DeserializeObject<dynamic>(request.ToString());
                 string name = requestData.Name;
-                var message = await _locationService.DeleteLocation(name);
+                var message = await _locationService.DeleteLocation(name, username);
                 return Ok(message);
             }
             catch (ArgumentException ex)
@@ -204,7 +217,8 @@ namespace Menu.Controllers
         [HttpGet("GetAllIngredientLocationList")]
         public async Task<ActionResult<NameLocation>> GetAllIngredientLocationList()
         {
-            var message = await _locationService.GetAllIngredientLocationList();
+            var username = HttpContext.Items["Username"].ToString();
+            var message = await _locationService.GetAllIngredientLocationList(username);
             return Ok(message);
         }
 

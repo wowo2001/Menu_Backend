@@ -8,21 +8,19 @@ namespace Menu.Data
 {
     public interface ILocationData
     {
-        Task<string> GetLocationData(string name);
+        Task<string> GetLocationData(string name, string username);
 
-        Task<string> AddLocationData(NameLocation nameLocation);
+        Task<string> AddLocationData(NameLocation nameLocation, string username);
 
-        Task<string> UpdateLocationData(NameLocation nameLocation);
+        Task<string> UpdateLocationData(NameLocation nameLocation, string username);
 
-        Task<List<string>> GetAllLocationData();
-
-        Task<string> DeleteLocationData(string name);
+        Task<string> DeleteLocationData(string name, string username);
 
     }
     public class LocationData : ILocationData
     {
         private readonly IAmazonDynamoDB _dynamoDbClient;
-        private readonly string _tableName = "NameLocation";
+        private readonly string _tableName = "Name_Location";
 
         public LocationData()
         {
@@ -35,29 +33,40 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<string> GetLocationData(string name)
+        public async Task<string> GetLocationData(string name, string username)
         {
-            var request = new GetItemRequest
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                IndexName = "Username-Name-index",
+                FilterExpression = "#name = :name and Username = :username",
+                ExpressionAttributeNames = new Dictionary<string, string>
                 {
-                    { "Name", new AttributeValue { S = name } }
+                    { "#name", "Name" }  // Alias the reserved keyword "Name" to "#name"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":name", new AttributeValue { S = name } },
+                    { ":username", new AttributeValue { S = username } }
                 }
             };
             string location = "";
             try
             {
-                var response = await _dynamoDbClient.GetItemAsync(request);
-                if (response.Item != null && response.Item.Count > 0)
+                var response = await _dynamoDbClient.ScanAsync(request);
+                if (response.Items != null && response.Items.Count > 0)
                 {
-                    location = response.Item["Location"].S;
-                    return location;
+                    // Assuming you are looking for a single item in the response
+                    var item = response.Items.FirstOrDefault();  // Getting the first (or only) item from the list
+
+                    if (item != null && item.ContainsKey("Location"))
+                    {
+                        // Access the "Location" value
+                        location = item["Location"].S;
+                    }
+                    
                 }
-                else
-                {
-                    return location;
-                }
+                return location;  // Return the "Location" value
 
             }
             catch (Exception ex)
@@ -66,7 +75,7 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> AddLocationData(NameLocation nameLocation)
+        public async Task<string> AddLocationData(NameLocation nameLocation, string username)
         {
 
             var putRequest = new PutItemRequest
@@ -74,8 +83,10 @@ namespace Menu.Data
                 TableName = _tableName,
                 Item = new Dictionary<string, AttributeValue>
             {
+                { "Id", new AttributeValue { S = Guid.NewGuid().ToString() } },
                 { "Name", new AttributeValue { S = nameLocation.Name } }, // Partition Key (Name)
-                { "Location", new AttributeValue { S = nameLocation.Location } }
+                { "Location", new AttributeValue { S = nameLocation.Location } },
+                { "Username", new AttributeValue { S = username } }
 
             }
             };
@@ -94,122 +105,118 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> UpdateLocationData(NameLocation nameLocation)
+        public async Task<string> UpdateLocationData(NameLocation nameLocation, string username)
         {
-            var updateRequest = new UpdateItemRequest
+            var id = await FindId(nameLocation.Name, username);
+            if (id == null)
             {
-                TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                return "Item not found";
+            }
+            else
             {
-                { "Name", new AttributeValue { S = nameLocation.Name } }  // Partition Key (Id)
+                var updateRequest = new UpdateItemRequest
+                {
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
+            {
+                { "Id", new AttributeValue { S = id } },  // Partition Key (Id)
             },
-                UpdateExpression = "SET #Location = :Location", // Update the 'Choice' attribute
-                ExpressionAttributeNames = new Dictionary<string, string>
+                    UpdateExpression = "SET #Location = :Location", // Update the 'Choice' attribute
+                    ExpressionAttributeNames = new Dictionary<string, string>
         {
             { "#Location", "Location" } // Map the reserved 'Location' to '#Location'
         },
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
         {
             { ":Location", new AttributeValue { S = nameLocation.Location } } // Use NameLocation.Location
         }
-            };
+                };
 
-            try
-            {
-                // Perform the DynamoDB UpdateItemAsync operation
-                await _dynamoDbClient.UpdateItemAsync(updateRequest);
-                return "Item updated"; // Return success message after updating the item
-            }
-            catch (Exception ex)
-            {
-                // Log the exception and handle any errors
-                Console.WriteLine($"Error updating item in DynamoDB: {ex.Message}");
-                throw; // Rethrow the exception to handle it at a higher level if needed
+                try
+                {
+                    // Perform the DynamoDB UpdateItemAsync operation
+                    await _dynamoDbClient.UpdateItemAsync(updateRequest);
+                    return "Item updated"; // Return success message after updating the item
+                }
+                catch (Exception ex)
+                {
+                    // Log the exception and handle any errors
+                    Console.WriteLine($"Error updating item in DynamoDB: {ex.Message}");
+                    throw; // Rethrow the exception to handle it at a higher level if needed
+                }
             }
         }
 
-        public async Task<List<string>> GetAllLocationData()
-        {
-            var projectionExpression = "Name";
-            var scanRequest = new ScanRequest
-            {
-                TableName = _tableName,
-                ProjectionExpression = projectionExpression
-            };
-            var ids = new List<string>();
-            try
-            {
-                // Perform the scan operation
-                var result = await _dynamoDbClient.ScanAsync(scanRequest);
+        
 
-                // Iterate over the scan results and extract the 'Id' values
-                foreach (var item in result.Items)
+        public async Task<string> DeleteLocationData(string name, string username)
+        {
+            var id = await FindId(name, username);
+            if (id == null)
+            {
+                return "Item not found";
+            }
+            else
+            {
+                var deleteRequest = new DeleteItemRequest
                 {
-                    if (item.ContainsKey("Name"))
+                    TableName = _tableName,
+                    Key = new Dictionary<string, AttributeValue>
+        {
+            { "Id", new AttributeValue { S = id } },  // Assuming "Name" is the partition key
+        }
+                };
+
+                try
+                {
+                    // Perform the delete operation
+                    var response = await _dynamoDbClient.DeleteItemAsync(deleteRequest);
+
+                    // Check if the delete operation was successful
+                    if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
                     {
-                        ids.Add(item["Name"].S);  // Add the 'Id' value to the list
+                        return "Purchase list successfully deleted.";  // Return success message
+                    }
+                    else
+                    {
+                        return "Failed to delete the purchase list.";  // If something goes wrong with the delete
                     }
                 }
-
-                // If there are more items, use LastEvaluatedKey to paginate
-                while (result.LastEvaluatedKey != null && result.LastEvaluatedKey.Count > 0)
+                catch (Exception ex)
                 {
-                    // Set the exclusive start key to continue from the last evaluated key
-                    scanRequest.ExclusiveStartKey = result.LastEvaluatedKey;
-                    result = await _dynamoDbClient.ScanAsync(scanRequest);
-
-                    // Add more 'Id' values to the list
-                    foreach (var item in result.Items)
-                    {
-                        if (item.ContainsKey("Name"))
-                        {
-                            ids.Add(item["Name"].S);
-                        }
-                    }
+                    // Handle any errors during the delete operation
+                    return $"Error deleting menu: {ex.Message}";
                 }
-
-                return ids;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error scanning DynamoDB table: {ex.Message}");
-                return null;
             }
 
         }
 
-        public async Task<string> DeleteLocationData(string name)
+        private async Task<string> FindId(string name, string username)
         {
-            var deleteRequest = new DeleteItemRequest
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
-        {
-            { "Name", new AttributeValue { S = name } }  // Assuming "Name" is the partition key
-        }
+                IndexName = "Username-Name-index",
+                FilterExpression = "#name = :name and Username = :username",
+                ExpressionAttributeNames = new Dictionary<string, string>
+                {
+                    { "#name", "Name" }  // Alias the reserved keyword "Name" to "#name"
+                },
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":name", new AttributeValue { S = name } },
+                    { ":username", new AttributeValue { S = username } }
+                }
             };
 
-            try
+            var response = await _dynamoDbClient.ScanAsync(request);
+            if (response.Items != null && response.Items.Count > 0)
             {
-                // Perform the delete operation
-                var response = await _dynamoDbClient.DeleteItemAsync(deleteRequest);
+                var item = response.Items.FirstOrDefault();
+                return item["Id"].S;
 
-                // Check if the delete operation was successful
-                if (response.HttpStatusCode == System.Net.HttpStatusCode.OK)
-                {
-                    return "Purchase list successfully deleted.";  // Return success message
-                }
-                else
-                {
-                    return "Failed to delete the purchase list.";  // If something goes wrong with the delete
-                }
             }
-            catch (Exception ex)
-            {
-                // Handle any errors during the delete operation
-                return $"Error deleting menu: {ex.Message}";
-            }
-
+            return null;
         }
     }
 }

@@ -51,6 +51,8 @@ app.UseCors("AllowAllOrigins");
 
 app.UseHttpsRedirection();
 
+app.UseMiddleware<TokenToUsernameMiddleware>();
+
 app.UseAuthorization();
 
 app.MapControllers();

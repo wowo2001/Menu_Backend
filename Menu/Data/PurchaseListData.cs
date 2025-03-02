@@ -1,27 +1,28 @@
 ﻿using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Runtime;
+using Amazon.Runtime.Internal;
 using Menu.Models;
 
 namespace Menu.Data
 {
     public interface IPurchaseListData
     {
-        Task<AggregateList> GetPurchaseList(string name);
+        Task<AggregateList> GetPurchaseList(string name, string username);
 
-        Task<string> AddPurchaseList(AggregateList aggregateList);
+        Task<string> AddPurchaseList(AggregateList aggregateList, string username);
 
-        Task<string> UpdatePurchaseList(AggregateList aggregateList);
+        Task<string> UpdatePurchaseList(AggregateList aggregateList, string username);
 
-        Task<List<string>> GetAllPurchaseList();
+        Task<List<string>> GetAllPurchaseList(string username);
 
-        Task<string> DeletePurchaseList(string Id);
+        Task<string> DeletePurchaseList(string Id, string username);
 
     }
     public class PurchaseListData : IPurchaseListData
     {
         private readonly IAmazonDynamoDB _dynamoDbClient;
-        private readonly string _tableName = "PurchaseList";
+        private readonly string _tableName = "PurchaseList_New";
 
         public PurchaseListData()
         {
@@ -34,25 +35,30 @@ namespace Menu.Data
             _dynamoDbClient = new AmazonDynamoDBClient(awsCredentials, config);
         }
 
-        public async Task<AggregateList> GetPurchaseList(string Id)
+        public async Task<AggregateList> GetPurchaseList(string Id, string username)
         {
-            var request = new GetItemRequest
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                Key = new Dictionary<string, AttributeValue>
+                IndexName = "Username-Id-index",
+                FilterExpression = "Id = :id and Username = :username",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
                 {
-                    { "Id", new AttributeValue { S = Id } }
+                    { ":id", new AttributeValue { S = Id } },
+                    { ":username", new AttributeValue { S = username } }
                 }
             };
+
             try
             {
                 AggregateList aggregateList = new AggregateList();
 
-                var response = await _dynamoDbClient.GetItemAsync(request);
-                if (response.Item != null && response.Item.Count > 0)
+                var response = await _dynamoDbClient.ScanAsync(request);
+                if (response.Items != null && response.Items.Count > 0)
                 {
+                    var item = response.Items.FirstOrDefault();
                     aggregateList.Id = Id;
-                    var ingredientList = response.Item["allIngredientList"].L;
+                    var ingredientList = item["allIngredientList"].L;
                     foreach (var ingredient in ingredientList)
                     {
                         var ingredientMap = ingredient.M;
@@ -81,7 +87,7 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> AddPurchaseList(AggregateList aggregateList)
+        public async Task<string> AddPurchaseList(AggregateList aggregateList, string username)
         {
 
             var putRequest = new PutItemRequest
@@ -89,6 +95,8 @@ namespace Menu.Data
                 TableName = _tableName,
                 Item = new Dictionary<string, AttributeValue>
         {
+                    {"Guid", new AttributeValue { S = Guid.NewGuid().ToString() }  },
+                    {"Username", new AttributeValue { S = username } },
             { "Id", new AttributeValue { S = aggregateList.Id } }, // Partition Key (Name)
             { "allIngredientList", new AttributeValue
                 {
@@ -123,14 +131,15 @@ namespace Menu.Data
             }
         }
 
-        public async Task<string> UpdatePurchaseList(AggregateList aggregateList)
+        public async Task<string> UpdatePurchaseList(AggregateList aggregateList, string username)
         {
+            var guid = await FindId(aggregateList.Id, username);
             var updateRequest = new UpdateItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
             {
-                { "Id", new AttributeValue { S = aggregateList.Id } }  // Partition Key (Id)
+                { "Guid", new AttributeValue { S = guid } }  // Partition Key (Id)
             },
                 UpdateExpression = "SET allIngredientList = :allIngredientList", // Update the 'Choice' attribute
                 ExpressionAttributeValues = new Dictionary<string, AttributeValue>
@@ -168,19 +177,23 @@ namespace Menu.Data
             }
         }
 
-        public async Task<List<string>> GetAllPurchaseList()
+        public async Task<List<string>> GetAllPurchaseList(string username)
         {
-            var projectionExpression = "Id";
-            var scanRequest = new ScanRequest
+
+            var request = new ScanRequest
             {
                 TableName = _tableName,
-                ProjectionExpression = projectionExpression
+                FilterExpression = " Username = :username",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        { ":username", new AttributeValue { S = username } }
+                    }
             };
             var ids = new List<string>();
             try
             {
                 // Perform the scan operation
-                var result = await _dynamoDbClient.ScanAsync(scanRequest);
+                var result = await _dynamoDbClient.ScanAsync(request);
 
                 // Iterate over the scan results and extract the 'Id' values
                 foreach (var item in result.Items)
@@ -188,23 +201,6 @@ namespace Menu.Data
                     if (item.ContainsKey("Id"))
                     {
                         ids.Add(item["Id"].S);  // Add the 'Id' value to the list
-                    }
-                }
-
-                // If there are more items, use LastEvaluatedKey to paginate
-                while (result.LastEvaluatedKey != null && result.LastEvaluatedKey.Count > 0)
-                {
-                    // Set the exclusive start key to continue from the last evaluated key
-                    scanRequest.ExclusiveStartKey = result.LastEvaluatedKey;
-                    result = await _dynamoDbClient.ScanAsync(scanRequest);
-
-                    // Add more 'Id' values to the list
-                    foreach (var item in result.Items)
-                    {
-                        if (item.ContainsKey("Id"))
-                        {
-                            ids.Add(item["Id"].S);
-                        }
                     }
                 }
 
@@ -218,14 +214,15 @@ namespace Menu.Data
 
         }
 
-        public async Task<string> DeletePurchaseList(string Id)
+        public async Task<string> DeletePurchaseList(string Id, string username)
         {
+            var guid = await FindId(Id, username);
             var deleteRequest = new DeleteItemRequest
             {
                 TableName = _tableName,
                 Key = new Dictionary<string, AttributeValue>
         {
-            { "Id", new AttributeValue { S = Id } }  // Assuming "Name" is the partition key
+            { "Guid", new AttributeValue { S = guid } }  // Assuming "Name" is the partition key
         }
             };
 
@@ -250,6 +247,30 @@ namespace Menu.Data
                 return $"Error deleting menu: {ex.Message}";
             }
 
+        }
+
+        private async Task<string> FindId(string id, string username)
+        {
+            var request = new ScanRequest
+            {
+                TableName = _tableName,
+                IndexName = "Username-Id-index",
+                FilterExpression = "Id = :id and Username = :username",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    { ":id", new AttributeValue { S = id } },
+                    { ":username", new AttributeValue { S = username } }
+                }
+            };
+
+            var response = await _dynamoDbClient.ScanAsync(request);
+            if (response.Items != null && response.Items.Count > 0)
+            {
+                var item = response.Items.FirstOrDefault();
+                return item["Guid"].S;
+
+            }
+            return null;
         }
     }
 }
